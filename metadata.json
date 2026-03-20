@@ -1,0 +1,8 @@
+{
+  "name": "Poppy Playtime: Аудио Приключение",
+  "description": "Текстово и аудио-описателно приключение, вдъхновено от Poppy Playtime, създадено специално за незрящи потребители и екранни четци.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
