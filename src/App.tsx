@@ -5,6 +5,7 @@ import { Play, ArrowRight, ArrowLeft, RefreshCw, Hand, Zap, ShieldAlert, Info, V
 import { MapModal } from './components/MapModal';
 import { GameOfMyLifeModal } from './components/GameOfMyLifeModal';
 import { Typewriter } from './components/Typewriter';
+import { translations, Language } from './i18n';
 
 type CharacterProfile = {
   background: 'employee' | 'investigator' | 'explorer' | 'paranormal' | '';
@@ -35,6 +36,7 @@ type AccessibilitySettings = {
   muteJumpscares: boolean;
   audioOutputId: string;
   locationEntrySound: boolean;
+  reduceEffects: boolean;
 };
 
 const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
@@ -48,6 +50,7 @@ const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
   muteJumpscares: false,
   audioOutputId: '',
   locationEntrySound: false,
+  reduceEffects: false,
 };
 
 type Choice = {
@@ -233,18 +236,28 @@ const OBJECTIVES: Record<string, string> = {
   explore_library: 'Разкрийте тайните на библиотеката. (По желание)',
 };
 
-const CHARACTER_REACTIONS: Record<string, Record<string, string>> = {
-  employee: {
-    blue_hand: "Това е старата ми Синя ръка... Колко спомени.",
-    red_hand: "Червената ръка. Сега мога да отварям всичко.",
-    treasure_map: "Карта на съкровищата? Кой ли я е нарисувал?",
-    vintage_poster: "Спомням си този плакат. Беше закачен навсякъде.",
-    golden_gear: "Златно зъбно колело. Производството тук беше странно.",
-    secret_tape: "Тайна касета... Какво ли има на нея?",
-    bron_prototype: "Прототип на Брон. Изглежда недовършен.",
-    employee_badge: "Работна карта... На някой от старите ми колеги.",
-    star_key: "Звезден ключ. Спомням си, че управителят имаше такъв.",
-    employee_manual: "Този наръчник... не трябваше да съществува.",
+const HINTS: Record<string, string> = {
+  enter_factory: 'Опитайте да използвате вратата на входа.',
+  restore_power: 'Потърсете електрическото табло в съседната стая.',
+  find_blue_hand: 'Синята ръка се намира в стаята за сигурност.',
+  open_production_door: 'Използвайте Синята ръка върху панела до вратата.',
+  find_red_battery: 'Червената батерия е скрита зад старите кутии.',
+  escape: 'Изходът е в края на коридора.',
+};
+
+const COLLECTIBLES_DATA: Record<string, { name: string, description: string }> = {
+  vintage_poster: { name: 'Vintage Poster', description: 'A faded poster from the 80s.' },
+  golden_gear: { name: 'Golden Gear', description: 'A shiny, heavy gear.' },
+  secret_tape: { name: 'Secret Tape', description: 'A mysterious VHS tape.' },
+  bron_prototype: { name: 'Bron Prototype', description: 'A small, unfinished toy.' },
+  employee_badge: { name: 'Employee Badge', description: 'A worn-out ID card.' },
+  rusty_key: { name: 'Rusty Key', description: 'A heavy, rusted key.' },
+  torn_photo: { name: 'Torn Photo', description: 'A faded photograph of a family.' },
+  broken_watch: { name: 'Broken Watch', description: 'A watch stopped at 12:00.' },
+  faded_ribbon: { name: 'Faded Ribbon', description: 'A blue ribbon, slightly frayed.' }
+};
+
+const TOTAL_COLLECTIBLES = 9;
     vhs_tape: "VHS касета. Трябва ми видеоплейър.",
     golden_vhs: "Златна касета. Това трябва да е важно.",
     torn_note: "Скъсана бележка. Почеркът ми е познат.",
@@ -355,6 +368,15 @@ const GAME_NODES: Record<string, GameNode> = {
         description: 'Писмото, което ви доведе тук: "Всички мислят, че персоналът е изчезнал преди 10 години. Ние все още сме тук. Намерете цветето." В плика имаше и стара видеокасета.',
         actionSound: SOUNDS.paper,
         icon: <Search className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'i2',
+        label: 'Вземи ръждясалия ключ',
+        description: 'Намерихте ръждясал ключ, скрит под купчина отломки.',
+        actionSound: SOUNDS.paper,
+        icon: <Unlock className="w-4 h-4 mr-2" />,
+        condition: (state) => !state.collectibles.includes('rusty_key'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'rusty_key'] })
       }
     ],
     choices: [
@@ -368,6 +390,17 @@ const GAME_NODES: Record<string, GameNode> = {
     text: 'Тази игра е текстово аудио приключение, оптимизирано за екранни четци. Можете да навигирате през текста и бутоните с клавиша Tab (или Shift+Tab за назад). За да изберете действие, натиснете Enter или Space. Нека опитаме сега. Изберете опцията по-долу, за да продължите.',
     bgSound: SOUNDS.room,
     bgMusic: MUSIC.exploration,
+    interactables: [
+      {
+        id: 'i3',
+        label: 'Разгледай снимката',
+        description: 'Намерихте стара, скъсана снимка на семейство.',
+        actionSound: SOUNDS.paper,
+        icon: <Search className="w-4 h-4 mr-2" />,
+        condition: (state) => !state.collectibles.includes('torn_photo'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'torn_photo'] })
+      }
+    ],
     choices: [
       { id: 'c1', text: 'Разбрах, продължи напред', nextId: 'tutorial_2_audio', actionSound: SOUNDS.success, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
@@ -378,6 +411,17 @@ const GAME_NODES: Record<string, GameNode> = {
     text: 'Звукът е ключов за оцеляването ви. Играта използва фонова музика за атмосфера, фонови звуци за средата (като капеща вода или вятър) и звукови ефекти за вашите действия (като отваряне на врата). Можете да включвате и изключвате звука от бутона горе вдясно. Чухте ли звука от предишното действие? Нека пробваме друг звук.',
     bgSound: SOUNDS.room,
     bgMusic: MUSIC.exploration,
+    interactables: [
+      {
+        id: 'i4',
+        label: 'Провери часовника',
+        description: 'Намерихте счупен часовник, спрял точно на 12:00.',
+        actionSound: SOUNDS.paper,
+        icon: <Timer className="w-4 h-4 mr-2" />,
+        condition: (state) => !state.collectibles.includes('broken_watch'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'broken_watch'] })
+      }
+    ],
     choices: [
       { id: 'c1', text: 'Чух го! Продължи към инвентара', nextId: 'tutorial_3_inventory', actionSound: SOUNDS.door, icon: <Volume2 className="w-5 h-5 mr-2 text-green-400" aria-hidden="true" /> }
     ]
@@ -388,6 +432,17 @@ const GAME_NODES: Record<string, GameNode> = {
     text: 'По време на играта ще събирате предмети (като ключове или батерии), които ще ви помогнат да отключвате нови пътища. Те ще се показват в списъка "Вашият инвентар" под изборите ви. Също така ще получавате задачи, които да следвате в секцията "Текущи задачи". Готови ли сте да влезете във фабриката?',
     bgSound: SOUNDS.room,
     bgMusic: MUSIC.exploration,
+    interactables: [
+      {
+        id: 'i5',
+        label: 'Вземи синята панделка',
+        description: 'Намерихте синя панделка, леко протрита.',
+        actionSound: SOUNDS.paper,
+        icon: <Award className="w-4 h-4 mr-2" />,
+        condition: (state) => !state.collectibles.includes('faded_ribbon'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'faded_ribbon'] })
+      }
+    ],
     choices: [
       { id: 'c1', text: 'Готов съм! Създай своя герой', nextId: 'char_creation_bg', actionSound: SOUNDS.footsteps, icon: <CheckCircle2 className="w-5 h-5 mr-2 text-green-400" aria-hidden="true" /> }
     ]
@@ -2433,9 +2488,12 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [visualCue, setVisualCue] = useState<React.ReactNode | null>(null);
   const [examinedObject, setExaminedObject] = useState<{label: string, description: string} | null>(null);
+  const [language, setLanguage] = useState<Language>('bg');
+  const t = (key: keyof typeof translations['bg']) => translations[language][key];
   const [accessibility, setAccessibility] = useState<AccessibilitySettings>(DEFAULT_ACCESSIBILITY);
   const [showSettings, setShowSettings] = useState(false);
   const [showMemoryLane, setShowMemoryLane] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<typeof history[0] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showGameOfMyLifeModal, setShowGameOfMyLifeModal] = useState(false);
@@ -2518,7 +2576,7 @@ export default function App() {
 
     if (nodeId === 'entrance') unlock('first_steps');
     if (nodeId === 'storage_warehouse' && state.character.perk === 'tech') unlock('tech_genius');
-    if (state.collectibles.length >= 5) unlock('collector');
+    if (state.collectibles.length >= TOTAL_COLLECTIBLES) unlock('collector');
     if (nodeId === 'escape' || nodeId === 'true_ending' || nodeId === 'true_ending_perfect') unlock('survivor');
     if (nodeId === 'true_ending_perfect') unlock('truth_seeker');
     if ((nodeId === 'true_ending' || nodeId === 'true_ending_perfect') && !localStorage.getItem('game_of_my_life_offered')) {
@@ -3315,7 +3373,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center"
           >
-            <div className="absolute inset-0 bg-blue-500/20 animate-[pulse_0.4s_ease-in-out_2]"></div>
+            <div className={`absolute inset-0 bg-blue-500/20 ${accessibility.reduceEffects ? '' : 'animate-[pulse_0.4s_ease-in-out_2]'}`}></div>
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -3349,10 +3407,10 @@ export default function App() {
       {!accessibility.highContrast && (
         <div 
           className={`fixed inset-0 pointer-events-none transition-all duration-1000 mix-blend-screen ${
-            currentNode.bgMusic === MUSIC.chase ? 'opacity-20 bg-red-900 animate-pulse' : 
+            currentNode.bgMusic === MUSIC.chase ? `opacity-20 bg-red-900 ${accessibility.reduceEffects ? '' : 'animate-pulse'}` : 
             currentNode.bgMusic === MUSIC.suspense ? 'opacity-10 bg-blue-900' : 
-            currentNode.bgSound === SOUNDS.monster_growl ? 'opacity-40 bg-red-900 animate-pulse' :
-            currentNode.bgSound === SOUNDS.zap ? 'opacity-30 bg-yellow-400 animate-pulse' :
+            currentNode.bgSound === SOUNDS.monster_growl ? `opacity-40 bg-red-900 ${accessibility.reduceEffects ? '' : 'animate-pulse'}` :
+            currentNode.bgSound === SOUNDS.zap ? `opacity-30 bg-yellow-400 ${accessibility.reduceEffects ? '' : 'animate-pulse'}` :
             currentNode.bgSound === SOUNDS.drip ? 'opacity-10 bg-blue-800' :
             currentNode.bgSound === SOUNDS.wind ? 'opacity-10 bg-gray-600' :
             currentNode.bgSound === SOUNDS.machine ? 'opacity-10 bg-green-900' :
@@ -3372,8 +3430,8 @@ export default function App() {
             exit={{ opacity: 0, y: -50 }}
             className="fixed top-24 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center pointer-events-none"
           >
-            <div className={`text-5xl font-black tracking-widest drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] ${timeLeft <= 3 ? 'text-red-500 animate-pulse scale-125' : 'text-red-400'}`}>
-              <Timer className={`w-10 h-10 inline-block mr-3 ${timeLeft <= 3 ? 'animate-spin' : ''}`} style={{ animationDuration: '1s' }} />
+            <div className={`text-5xl font-black tracking-widest drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] ${timeLeft <= 3 ? `text-red-500 ${accessibility.reduceEffects ? '' : 'animate-pulse'} scale-125` : 'text-red-400'}`}>
+              <Timer className={`w-10 h-10 inline-block mr-3 ${timeLeft <= 3 && !accessibility.reduceEffects ? 'animate-spin' : ''}`} style={{ animationDuration: '1s' }} />
               00:{timeLeft.toString().padStart(2, '0')}
             </div>
             <div className="w-72 h-3 bg-black/80 border border-red-900 rounded-full mt-4 overflow-hidden shadow-[0_0_10px_rgba(239,68,68,0.5)]">
@@ -3407,16 +3465,16 @@ export default function App() {
             <div 
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${accessibility.highContrast ? 'border-white text-white' : 'border-yellow-500/30 text-yellow-500 bg-yellow-500/10'}`} 
               title="Колекционерски предмети"
-              aria-label={`Колекционерски предмети: ${gameState.collectibles.length} от 5`}
+              aria-label={`Колекционерски предмети: ${gameState.collectibles.length} от ${TOTAL_COLLECTIBLES}`}
             >
               <Zap className="w-4 h-4" />
-              <span className="font-bold font-mono text-sm">{gameState.collectibles.length}/5</span>
+              <span className="font-bold font-mono text-sm">{gameState.collectibles.length}/{TOTAL_COLLECTIBLES}</span>
             </div>
             {isAudioEnabled && (
               <div className="flex items-end gap-1 h-4 mr-2" aria-hidden="true">
-                <span className={`w-1 animate-[bounce_1s_infinite_0ms] h-full rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                <span className={`w-1 animate-[bounce_1s_infinite_200ms] h-3/4 rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                <span className={`w-1 animate-[bounce_1s_infinite_400ms] h-full rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_1s_infinite_0ms]'} h-full rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_1s_infinite_200ms]'} h-3/4 rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_1s_infinite_400ms]'} h-full rounded-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
               </div>
             )}
             <motion.button whileTap={{ scale: 0.95 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -3647,7 +3705,22 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Изключи звука от стряскащи моменти</label>
+                  <label className="text-sm font-medium">{t('reduceEffects')}</label>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    onClick={() => setAccessibility(prev => ({ ...prev, reduceEffects: !prev.reduceEffects }))}
+                    className={`w-12 h-6 rounded-full relative transition-colors ${
+                      accessibility.reduceEffects ? (accessibility.highContrast ? 'bg-white' : 'bg-yellow-400') : 'bg-zinc-600'
+                    }`}
+                    aria-pressed={accessibility.reduceEffects}
+                  >
+                    <span className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-transform ${
+                      accessibility.reduceEffects ? `translate-x-6 ${accessibility.highContrast ? 'bg-black' : 'bg-white'}` : 'translate-x-0 bg-white'
+                    }`} />
+                  </motion.button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">{t('muteJumpscares')}</label>
                   <motion.button whileTap={{ scale: 0.95 }}
                     onClick={() => setAccessibility(prev => ({ ...prev, muteJumpscares: !prev.muteJumpscares }))}
                     className={`w-12 h-6 rounded-full relative transition-colors ${
@@ -3662,7 +3735,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Звук при влизане в нова локация</label>
+                  <label className="text-sm font-medium">{t('locationEntrySound')}</label>
                   <motion.button whileTap={{ scale: 0.95 }}
                     onClick={() => setAccessibility(prev => ({ ...prev, locationEntrySound: !prev.locationEntrySound }))}
                     className={`w-12 h-6 rounded-full relative transition-colors ${
@@ -3678,9 +3751,17 @@ export default function App() {
               </div>
             </div>
 
+            <div className="mb-6 border-t border-zinc-700 pt-6">
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-70">Език / Language</h3>
+              <div className="flex gap-3">
+                <button onClick={() => setLanguage('bg')} className={`flex-1 py-2 rounded-lg ${language === 'bg' ? 'bg-yellow-400 text-black' : 'bg-zinc-700'}`}>BG</button>
+                <button onClick={() => setLanguage('en')} className={`flex-1 py-2 rounded-lg ${language === 'en' ? 'bg-yellow-400 text-black' : 'bg-zinc-700'}`}>EN</button>
+              </div>
+            </div>
+
             {/* Narration Speed */}
             <div className="mb-8">
-              <label className="block text-sm font-medium mb-2">Скорост на четене: {accessibility.narrationSpeed}x</label>
+              <label className="block text-sm font-medium mb-2">{t('narrationSpeed')}: {accessibility.narrationSpeed}x</label>
               <input
                 type="range"
                 min="0.5"
@@ -3689,13 +3770,13 @@ export default function App() {
                 value={accessibility.narrationSpeed}
                 onChange={(e) => setAccessibility(prev => ({ ...prev, narrationSpeed: parseFloat(e.target.value) }))}
                 className={`w-full ${accessibility.highContrast ? 'accent-white' : 'accent-yellow-400'}`}
-                aria-label="Скорост на четене"
+                aria-label={t('narrationSpeed')}
               />
             </div>
 
             {/* Save / Load */}
             <div className="mb-6 border-t border-zinc-700 pt-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-70">Прогрес</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-70">{t('progress')}</h3>
               <div className="flex gap-3">
                 <motion.button whileTap={{ scale: 0.95 }} 
                   onClick={saveGame}
@@ -3704,7 +3785,7 @@ export default function App() {
                   }`}
                 >
                   <Save className="w-4 h-4" />
-                  Запази
+                  {t('save')}
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.95 }} 
                   onClick={loadGame}
@@ -3713,7 +3794,7 @@ export default function App() {
                   }`}
                 >
                   <Download className="w-4 h-4" />
-                  Зареди
+                  {t('load')}
                 </motion.button>
               </div>
             </div>
@@ -3762,12 +3843,32 @@ export default function App() {
               </div>
               <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                 {history.map((h, index) => (
-                  <div key={index} className={`p-4 rounded-lg border ${accessibility.highContrast ? 'border-white' : 'border-zinc-700 bg-zinc-800'}`}>
+                  <button
+                    key={index}
+                    onClick={() => setSelectedHistoryItem(h)}
+                    className={`w-full text-left p-4 rounded-lg border ${accessibility.highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-zinc-700 bg-zinc-800 hover:border-yellow-400'}`}
+                  >
                     <h4 className="font-bold text-lg">{h.title}</h4>
                     <p className="text-sm opacity-80">{h.text.substring(0, 100)}...</p>
-                  </div>
+                  </button>
                 ))}
               </div>
+              {selectedHistoryItem && (
+                <div className={`mt-6 p-4 rounded-lg border ${accessibility.highContrast ? 'border-white' : 'border-yellow-400/30 bg-zinc-800'}`}>
+                  <h3 className="font-bold text-xl mb-2">{selectedHistoryItem.title}</h3>
+                  <p className="text-sm mb-4">{selectedHistoryItem.text}</p>
+                  <div className="text-xs font-mono opacity-70">
+                    <p>Инвентар: {selectedHistoryItem.gameState.inventory.join(', ') || 'Празен'}</p>
+                    <p>Цели: {selectedHistoryItem.gameState.objectives.join(', ')}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedHistoryItem(null)}
+                    className="mt-4 text-sm underline"
+                  >
+                    Затвори резюмето
+                  </button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -3849,11 +3950,11 @@ export default function App() {
               <div className="flex flex-col z-10">
                 <span className="text-[10px] font-mono tracking-[0.2em] opacity-70 uppercase">Аудио сигнал</span>
                 <div className="flex items-end gap-[2px] h-3 mt-1">
-                  <span className={`w-1 animate-[bounce_0.6s_infinite_0ms] h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                  <span className={`w-1 animate-[bounce_0.6s_infinite_100ms] h-2/3 ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                  <span className={`w-1 animate-[bounce_0.6s_infinite_200ms] h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                  <span className={`w-1 animate-[bounce_0.6s_infinite_300ms] h-1/2 ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
-                  <span className={`w-1 animate-[bounce_0.6s_infinite_400ms] h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                  <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_0.6s_infinite_0ms]'} h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                  <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_0.6s_infinite_100ms]'} h-2/3 ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                  <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_0.6s_infinite_200ms]'} h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                  <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_0.6s_infinite_300ms]'} h-1/2 ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
+                  <span className={`w-1 ${accessibility.reduceEffects ? '' : 'animate-[bounce_0.6s_infinite_400ms]'} h-full ${accessibility.highContrast ? 'bg-white' : 'bg-yellow-400'}`}></span>
                 </div>
               </div>
             </motion.div>
@@ -4175,16 +4276,12 @@ export default function App() {
           <div className={`mt-8 p-4 border rounded-lg ${accessibility.highContrast ? 'bg-black border-white' : 'bg-yellow-900/20 border-yellow-500/30'}`} role="status" aria-live="polite">
             <h3 className={`font-bold mb-2 flex items-center ${accessibility.highContrast ? 'text-white' : 'text-yellow-500'} ${accessibility.fontSize === 'xlarge' ? 'text-2xl' : accessibility.fontSize === 'large' ? 'text-xl' : 'text-lg'}`}>
               <Zap className="w-5 h-5 mr-2" />
-              Колекционерски предмети ({gameState.collectibles.length}/5):
+              Колекционерски предмети ({gameState.collectibles.length}/{TOTAL_COLLECTIBLES}):
             </h3>
             <ul className={`list-disc list-inside ${accessibility.highContrast ? 'text-white' : 'text-yellow-300'} ${accessibility.fontSize === 'xlarge' ? 'text-xl' : accessibility.fontSize === 'large' ? 'text-lg' : 'text-base'}`}>
               {gameState.collectibles.map((item, index) => (
                 <li key={index} className="capitalize">
-                  {item === 'vintage_poster' ? 'Винтидж Плакат' : 
-                   item === 'golden_gear' ? 'Златно зъбно колело' : 
-                   item === 'employee_badge' ? 'Значка на Служител на Месеца' : 
-                   item === 'secret_tape' ? 'Тайна касета' : 
-                   item === 'bron_prototype' ? 'Прототип на Брон' : item}
+                  {COLLECTIBLES_DATA[item]?.name || item}
                 </li>
               ))}
             </ul>
@@ -4203,6 +4300,21 @@ export default function App() {
                 <li key={index}>{OBJECTIVES[obj]}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {gameState.objectives.length === 0 && (
+          <div className="mt-4">
+            <motion.button whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                const nextObj = gameState.completedObjectives[gameState.completedObjectives.length - 1];
+                const hint = HINTS[nextObj] || 'Продължете да изследвате.';
+                setToast(`${t('hint')}: ${hint}`);
+              }}
+              className={`w-full p-3 rounded-lg font-bold transition-colors ${accessibility.highContrast ? 'bg-white text-black' : 'bg-yellow-400 text-black'}`}
+            >
+              {t('findNextObjective')}
+            </motion.button>
           </div>
         )}
 
@@ -4287,7 +4399,9 @@ export default function App() {
             aria-live="assertive"
           >
             {/* Glitch scanline effect overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-30"></div>
+            {!accessibility.reduceEffects && (
+              <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-30"></div>
+            )}
             
             <div className="relative z-10">
               <CheckCircle2 className="w-6 h-6" />
