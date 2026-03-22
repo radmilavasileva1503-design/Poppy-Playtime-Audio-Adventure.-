@@ -108,6 +108,8 @@ const SOUNDS = {
   library_bg: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop_ambience.ogg',
   creepy_ambience: 'https://actions.google.com/sounds/v1/science_fiction/scifi_hum.ogg',
   factory: 'https://actions.google.com/sounds/v1/science_fiction/scifi_machine_room_hum.ogg',
+  machinery_distant: 'https://actions.google.com/sounds/v1/ambiences/industrial_machinery.ogg',
+  water_dripping: 'https://actions.google.com/sounds/v1/foley/water_drip.ogg',
 
   // Actions / Foley
   door: 'https://actions.google.com/sounds/v1/doors/metal_door_open_and_close.ogg',
@@ -120,8 +122,10 @@ const SOUNDS = {
   paper: 'https://actions.google.com/sounds/v1/foley/turning_pages.ogg',
   keys: 'https://actions.google.com/sounds/v1/foley/keys_jingle.ogg',
   footsteps: 'https://actions.google.com/sounds/v1/foley/footsteps_on_wood.ogg',
+  footsteps_metal: 'https://actions.google.com/sounds/v1/foley/footsteps_on_metal.ogg',
   chase: 'https://actions.google.com/sounds/v1/foley/running_on_concrete.ogg',
   clank: 'https://actions.google.com/sounds/v1/foley/metal_clank.ogg',
+  pipes: 'https://actions.google.com/sounds/v1/foley/metal_creak.ogg',
   switch: 'https://actions.google.com/sounds/v1/foley/light_switch.ogg',
   glass: 'https://actions.google.com/sounds/v1/foley/glass_shatter.ogg',
 
@@ -150,6 +154,7 @@ const SOUNDS = {
   interaction: 'https://actions.google.com/sounds/v1/science_fiction/robot_code_computer_beeps.ogg',
   objective_complete: 'https://actions.google.com/sounds/v1/science_fiction/power_up.ogg',
   intro: 'https://actions.google.com/sounds/v1/horror/creepy_music_box.ogg',
+  eerie_jingle: 'https://actions.google.com/sounds/v1/horror/creepy_music_box.ogg',
 };
 
 const INVENTORY_NAMES: Record<string, string> = {
@@ -175,7 +180,8 @@ const INVENTORY_NAMES: Record<string, string> = {
   star_key: 'Звезден ключ',
   employee_manual: 'Наръчник на служителя',
   broken_poker_chip: 'Счупен покер чип',
-  ivory_die: 'Слонова кост зар'
+  ivory_die: 'Слонова кост зар',
+  broken_id: 'Счупена служебна карта'
 };
 
 const INVENTORY_DESCRIPTIONS: Record<string, string> = {
@@ -201,14 +207,15 @@ const INVENTORY_DESCRIPTIONS: Record<string, string> = {
   star_key: 'Ключ с необичайна форма на звезда. Вероятно отключва специален шкаф или сейф.',
   employee_manual: 'Секретен наръчник с класифицирана информация за експериментите с играчки.',
   broken_poker_chip: 'Счупен покер чип от казиното. Има странни символи по него.',
-  ivory_die: 'Изящно изработен зар от слонова кост. Изглежда много стар.'
+  ivory_die: 'Изящно изработен зар от слонова кост. Изглежда много стар.',
+  broken_id: 'Счупена служебна карта, която изглежда е била на някой от служителите.'
 };
 
 const playAudio = (soundUrl: string | undefined, volume: number, settings: AccessibilitySettings, loop: boolean = false): HTMLAudioElement | null => {
   if (!soundUrl) return null;
   
   // Check mutes
-  if (settings.muteFootsteps && (soundUrl === SOUNDS.footsteps || soundUrl === SOUNDS.chase)) return null;
+  if (settings.muteFootsteps && (soundUrl === SOUNDS.footsteps || soundUrl === SOUNDS.footsteps_metal || soundUrl === SOUNDS.chase)) return null;
   if (settings.muteDoors && (soundUrl === SOUNDS.door || soundUrl === SOUNDS.door_locked || soundUrl === SOUNDS.door_heavy)) return null;
   if (settings.muteWindows && (soundUrl === SOUNDS.window_open || soundUrl === SOUNDS.window_close || soundUrl === SOUNDS.vent)) return null;
   if (settings.muteJumpscares && (soundUrl === SOUNDS.jumpscare || soundUrl === SOUNDS.monster_growl || soundUrl === SOUNDS.crash)) return null;
@@ -258,6 +265,8 @@ const COLLECTIBLES_DATA: Record<string, { name: string, description: string }> =
 };
 
 const TOTAL_COLLECTIBLES = 9;
+const CHARACTER_REACTIONS: Record<string, Record<string, string>> = {
+  employee: {
     vhs_tape: "VHS касета. Трябва ми видеоплейър.",
     golden_vhs: "Златна касета. Това трябва да е важно.",
     torn_note: "Скъсана бележка. Почеркът ми е познат.",
@@ -352,7 +361,16 @@ const GAME_NODES: Record<string, GameNode> = {
     bgSound: SOUNDS.intro,
     bgMusic: MUSIC.suspense,
     choices: [
-      { id: 'c1', text: 'Продължи към Главното меню', nextId: 'start', actionSound: SOUNDS.door_heavy, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+      { id: 'c1', text: 'Продължи', nextId: 'poppy_playtime_logo', actionSound: SOUNDS.door_heavy, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+    ]
+  },
+  poppy_playtime_logo: {
+    id: 'poppy_playtime_logo',
+    title: 'Poppy Playtime Logo',
+    text: 'You see the Poppy Playtime logo on the screen. An eerie jingle plays...',
+    bgSound: SOUNDS.eerie_jingle,
+    choices: [
+      { id: 'skip', text: 'Skip', nextId: 'start', icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
   start: {
@@ -360,7 +378,7 @@ const GAME_NODES: Record<string, GameNode> = {
     title: 'Главно меню',
     text: 'Добре дошли в Poppy Playtime: Аудио Приключение. Тази игра е създадена специално за екранни четци. Използвайте клавиша Tab, за да навигирате между опциите, и Enter или Space, за да избирате. Готови ли сте да влезете в изоставената фабрика за играчки Playtime Co.?',
     bgSound: SOUNDS.room,
-    bgMusic: MUSIC.calm,
+    bgMusic: MUSIC.suspense,
     interactables: [
       {
         id: 'i1',
@@ -1205,6 +1223,79 @@ const GAME_NODES: Record<string, GameNode> = {
       { id: 'c1', text: 'Влез внимателно през отключената голяма врата', nextId: 'make_a_friend', actionSound: SOUNDS.door_heavy, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
+  storage_room: {
+    id: 'storage_room',
+    title: 'Склад (Storage Room)',
+    text: 'Влизате в малък, претрупан склад. Рафтовете са отрупани с кутии, а в ъгъла виждате стара вендинг машина, която все още свети слабо. До нея има прашен компютър, чийто екран е изгаснал.',
+    bgSound: SOUNDS.machine,
+    bgMusic: MUSIC.exploration,
+    interactables: [
+      {
+        id: 'vending_machine',
+        label: 'Вендинг машина',
+        description: 'В машината има Служебна карта (Service Card).',
+        actionSound: SOUNDS.pickup,
+        action: (state) => ({ ...state, inventory: [...state.inventory, 'service_card'] }),
+        icon: <Hand className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'old_computer',
+        label: 'Стар компютър',
+        description: 'Компютърът изисква Синя ръка (Blue Hand), за да се активира. Кодът 0428 е разкрит!',
+        actionSound: SOUNDS.success,
+        condition: (state) => state.inventory.includes('blue_hand'),
+        action: (state) => ({ ...state, inventory: [...state.inventory, 'safe_code_0428'] }),
+        icon: <Cpu className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'vintage_poster',
+        label: 'Разгледай ретро плакат',
+        description: 'Стар, избледнял плакат на играчките. Изглежда ценен.',
+        actionSound: SOUNDS.paper,
+        condition: (state) => !state.collectibles.includes('vintage_poster'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'vintage_poster'] }),
+        icon: <Search className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'vintage_poster',
+        label: 'Разгледай ретро плакат',
+        description: 'Стар, избледнял плакат на играчките. Изглежда ценен.',
+        actionSound: SOUNDS.paper,
+        condition: (state) => !state.collectibles.includes('vintage_poster'),
+        action: (state) => ({ ...state, collectibles: [...state.collectibles, 'vintage_poster'] }),
+        icon: <Search className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'loose_panel',
+        label: 'Провери разхлабения панел',
+        description: 'Зад панела се чува странно драскане... Може би е код? 1-9-8-4.',
+        actionSound: SOUNDS.clank,
+        icon: <Search className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'broken_id',
+        label: 'Вземи счупена служебна карта',
+        description: 'Счупена служебна карта. Името е изтрито, но снимката изглежда позната.',
+        actionSound: SOUNDS.pickup,
+        condition: (state) => !state.inventory.includes('broken_id'),
+        action: (state) => ({ ...state, inventory: [...state.inventory, 'broken_id'] }),
+        icon: <Hand className="w-4 h-4 mr-2" />
+      },
+      {
+        id: 'hidden_compartment',
+        label: 'Скрит панел',
+        description: 'Скрит панел в стената. Изглежда, че се нуждае от код.',
+        condition: (state) => state.inventory.includes('safe_code_0428'),
+        action: (state) => ({ ...state, inventory: [...state.inventory, 'secret_key'] }),
+        actionSound: SOUNDS.success,
+        icon: <Unlock className="w-4 h-4 mr-2" />
+      }
+    ],
+    choices: [
+      { id: 'c1', text: 'Вземи значката на служителя (Employee Badge)', nextId: 'storage_room', action: (state) => ({ ...state, collectibles: [...state.collectibles, 'employee_badge'] }), icon: <Award className="w-5 h-5 mr-2" aria-hidden="true" /> },
+      { id: 'c2', text: 'Върни се в Залата "Направи си приятел"', nextId: 'make_a_friend', actionSound: SOUNDS.door, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+    ]
+  },
   make_a_friend: {
     id: 'make_a_friend',
     title: 'Зала "Направи си приятел"',
@@ -1227,14 +1318,15 @@ const GAME_NODES: Record<string, GameNode> = {
       { id: 'c4', text: 'Влез в тъмния коридор към Стаята за отхвърлени играчки', nextId: 'dark_corridor', actionSound: SOUNDS.door, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c5', text: 'Отвори ръждясалата врата към Килера за поддръжка', nextId: 'maintenance_closet', actionSound: SOUNDS.door_heavy, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c6', text: 'Постави Червената батерия в машината', nextId: 'machine_powered', condition: (state) => state.inventory.includes('red_battery'), actionSound: SOUNDS.power_up, icon: <Zap className="w-5 h-5 mr-2 text-yellow-400" aria-hidden="true" /> },
-      { id: 'c7', text: 'Разгледай изоставената Зона за тестване на играчки', nextId: 'toy_testing_area', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+      { id: 'c7', text: 'Разгледай изоставената Зона за тестване на играчки', nextId: 'toy_testing_area', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
+      { id: 'c8', text: 'Влез в Склада (Storage Room)', nextId: 'storage_room', actionSound: SOUNDS.door, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
   toy_testing_area: {
     id: 'toy_testing_area',
     title: 'Зона за тестване на играчки',
     text: '[Ехо от стъпки в огромно празно помещение]. Влизате в голяма стая, пълна с полуразрушени препятствия и избледнели мишени. Това е мястото, където са тествали издръжливостта и рефлексите на играчките. В ъгъла виждате странна машина с надпис "Тест за интелигентност", а до нея има полуотворена врата към стаята за наблюдение.',
-    bgSound: SOUNDS.factory,
+    bgSound: SOUNDS.machinery_distant,
     bgMusic: MUSIC.exploration,
     interactables: [
       {
@@ -1311,7 +1403,7 @@ const GAME_NODES: Record<string, GameNode> = {
     id: 'maintenance_closet',
     title: 'Килер за поддръжка',
     text: '[Мирис на ръжда и влага]. Тясно и прашно помещение, претъпкано със стари инструменти и зловещи, разглобени пластмасови части за играчки. На една от металните полици, покрит с масло, лежи тежък гаечен ключ.',
-    bgSound: SOUNDS.drip,
+    bgSound: SOUNDS.water_dripping,
     bgMusic: MUSIC.exploration,
     interactables: [
       {
@@ -1437,6 +1529,7 @@ const GAME_NODES: Record<string, GameNode> = {
     choices: [
       { id: 'c1', text: 'Тръгни наляво (към дишането)', nextId: 'dark_corridor_death_monster', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c2', text: 'Тръгни надясно (към капещата вода)', nextId: 'dark_maze_2', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
+      { id: 'c4', text: 'Тръгни наляво (към странното шепнене)', nextId: 'shadow_stalker_room', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c3', text: 'Върни се назад', nextId: 'dark_corridor', icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
@@ -1460,6 +1553,29 @@ const GAME_NODES: Record<string, GameNode> = {
       { id: 'c1', text: 'Тръгни направо (към електричеството)', nextId: 'dark_corridor_death_electric', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c2', text: 'Тръгни наляво (към вятъра)', nextId: 'rejected_room', actionSound: SOUNDS.door, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c3', text: 'Върни се назад', nextId: 'dark_corridor', icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+    ]
+  },
+  shadow_stalker_room: {
+    id: 'shadow_stalker_room',
+    title: 'Коридорът със Сянката',
+    text: 'Влизате в по-широк коридор. Изведнъж усещате, че някой ви наблюдава. Сянка се движи по стените, въпреки че наоколо няма светлина. Чувате тихо, злокобно шепнене, което сякаш идва от всички посоки едновременно. Усещате, че не сте сами.',
+    bgSound: SOUNDS.monster_growl,
+    bgMusic: MUSIC.suspense,
+    choices: [
+      { id: 'c1', text: 'Продължи напред', nextId: 'shadow_stalker_encounter', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
+      { id: 'c2', text: 'Върни се назад', nextId: 'dark_corridor', icon: <ArrowLeft className="w-5 h-5 mr-2" aria-hidden="true" /> }
+    ]
+  },
+  shadow_stalker_encounter: {
+    id: 'shadow_stalker_encounter',
+    title: 'Среща със Сянката',
+    text: '[Внезапно спиране на всякакви звуци]. Сянката се материализира точно пред вас. Тя няма лице, само две светещи, празни очи, които ви впиват поглед. Студът става непоносим. Преди да успеете да реагирате, тя се хвърля върху вас, превръщайки се в черен дим, който ви задушава. Край на играта.',
+    bgSound: SOUNDS.monster_growl,
+    bgMusic: MUSIC.chase,
+    entrySound: SOUNDS.jumpscare,
+    vibration: [300, 100, 300, 100, 500],
+    choices: [
+      { id: 'c1', text: 'Опитай отново', nextId: 'start', action: () => INITIAL_STATE, icon: <RefreshCw className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
   dark_corridor_death_monster: {
@@ -1910,6 +2026,14 @@ const GAME_NODES: Record<string, GameNode> = {
       { id: 'c1', text: 'Бягай към отворената вентилационна шахта!', nextId: 'vents', actionSound: SOUNDS.vent, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c2', text: 'Скрий се под близката маса', nextId: 'hide_death', actionSound: SOUNDS.crash, icon: <ShieldAlert className="w-5 h-5 mr-2 text-red-600" aria-hidden="true" /> },
       { id: 'c3', text: 'Използвай гаечния ключ, за да счупиш тръбата с пара!', nextId: 'steam_escape', condition: (state) => state.inventory.includes('wrench'), actionSound: SOUNDS.clank, icon: <Zap className="w-5 h-5 mr-2 text-yellow-400" aria-hidden="true" /> },
+      { 
+        id: 'c_athletic_slide', 
+        text: 'Плъзни се под частично отворената врата (Атлет)', 
+        nextId: 'secret_escape', 
+        condition: (state) => state.character.perk === 'athletic', 
+        actionSound: SOUNDS.footsteps_metal, 
+        icon: <Activity className="w-5 h-5 mr-2 text-green-400" aria-hidden="true" /> 
+      },
       { id: 'c4', text: 'Прескочи конвейера и се плъзни под вратата (Атлет)', nextId: 'secret_escape', condition: (state) => state.character.perk === 'athletic', actionSound: SOUNDS.chase, icon: <Activity className="w-5 h-5 mr-2 text-green-400" aria-hidden="true" /> },
       { id: 'c5', text: 'Избягай към залостения таен тунел', nextId: 'secret_tunnel_entrance', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c6', text: 'Отвори вратата към изоставеното Казино', nextId: 'casino', actionSound: SOUNDS.door, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
@@ -2040,6 +2164,7 @@ const GAME_NODES: Record<string, GameNode> = {
     text: 'Когато погледнете масата за карти от точно определен ъгъл, забелязвате, че сенките образуват странен модел върху стената. Натискате леко дървената ламперия и тя се отваря, разкривайки тесен, прашен проход.',
     bgSound: SOUNDS.clank,
     bgMusic: MUSIC.suspense,
+    entrySound: SOUNDS.discovery,
     choices: [
       { id: 'c1', text: 'Влез в тайния проход', nextId: 'secret_passage', actionSound: SOUNDS.footsteps, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
       { id: 'c2', text: 'Върни се в казиното', nextId: 'casino', actionSound: SOUNDS.footsteps, icon: <ArrowLeft className="w-5 h-5 mr-2" aria-hidden="true" /> }
@@ -2234,8 +2359,8 @@ const GAME_NODES: Record<string, GameNode> = {
       }
     ],
     choices: [
-      { id: 'c1', text: 'Завий наляво', nextId: 'vents_left', actionSound: SOUNDS.vent, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
-      { id: 'c2', text: 'Завий надясно', nextId: 'vents_right', actionSound: SOUNDS.vent, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
+      { id: 'c1', text: 'Завий наляво', nextId: 'vents_left', actionSound: SOUNDS.footsteps_metal, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> },
+      { id: 'c2', text: 'Завий надясно', nextId: 'vents_right', actionSound: SOUNDS.footsteps_metal, icon: <ArrowRight className="w-5 h-5 mr-2" aria-hidden="true" /> }
     ]
   },
   vents_left: {
@@ -2498,6 +2623,7 @@ export default function App() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [showGameOfMyLifeModal, setShowGameOfMyLifeModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showHint, setShowHint] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceLine, setVoiceLine] = useState<{text: string, character: string} | null>(null);
   const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>(() => {
@@ -3462,6 +3588,17 @@ export default function App() {
               <Search className="w-4 h-4" />
               <span className="font-bold font-mono text-sm">{gameState.secretNotes.length}/2</span>
             </div>
+            <button
+              onClick={() => setShowHint(!showHint)}
+              className={`p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 ${
+                accessibility.highContrast
+                  ? 'border-white text-white'
+                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+              }`}
+              aria-label="Покажи подсказка"
+            >
+              <Info className="w-5 h-5" />
+            </button>
             <div 
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${accessibility.highContrast ? 'border-white text-white' : 'border-yellow-500/30 text-yellow-500 bg-yellow-500/10'}`} 
               title="Колекционерски предмети"
@@ -3542,6 +3679,23 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {showHint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className={`p-6 rounded-xl border-2 ${accessibility.highContrast ? 'border-white bg-black' : 'border-yellow-500 bg-gray-900'}`}>
+            <h2 className="text-2xl font-bold mb-4 text-white">Подсказка</h2>
+            <p className="text-lg text-gray-200 mb-6">
+              {gameState.objectives.length > 0 ? HINTS[gameState.objectives[0]] || 'Няма налични подсказки за текущата цел.' : 'Няма активни цели.'}
+            </p>
+            <button
+              onClick={() => setShowHint(false)}
+              className={`px-4 py-2 rounded-lg font-bold ${accessibility.highContrast ? 'bg-white text-black' : 'bg-yellow-500 text-black'}`}
+            >
+              Затвори
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
